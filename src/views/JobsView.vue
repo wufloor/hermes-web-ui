@@ -1,0 +1,93 @@
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { NButton, NSpin } from 'naive-ui'
+import JobsPanel from '@/components/jobs/JobsPanel.vue'
+import JobFormModal from '@/components/jobs/JobFormModal.vue'
+import { useJobsStore } from '@/stores/jobs'
+
+const jobsStore = useJobsStore()
+const showModal = ref(false)
+const editingJob = ref<string | null>(null)
+
+onMounted(() => {
+  jobsStore.fetchJobs()
+})
+
+function openCreateModal() {
+  editingJob.value = null
+  showModal.value = true
+}
+
+function openEditModal(jobId: string) {
+  editingJob.value = jobId
+  showModal.value = true
+}
+
+function handleModalClose() {
+  showModal.value = false
+  editingJob.value = null
+}
+
+async function handleSave() {
+  await jobsStore.fetchJobs()
+  handleModalClose()
+}
+</script>
+
+<template>
+  <div class="jobs-view">
+    <header class="jobs-header">
+      <h2 class="header-title">Scheduled Jobs</h2>
+      <NButton type="primary" @click="openCreateModal">
+        <template #icon>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </template>
+        Create Job
+      </NButton>
+    </header>
+
+    <div class="jobs-content">
+      <NSpin :show="jobsStore.loading && jobsStore.jobs.length === 0">
+        <JobsPanel @edit="openEditModal" />
+      </NSpin>
+    </div>
+
+    <JobFormModal
+      v-if="showModal"
+      :job-id="editingJob"
+      @close="handleModalClose"
+      @saved="handleSave"
+    />
+  </div>
+</template>
+
+<style scoped lang="scss">
+@use '@/styles/variables' as *;
+
+.jobs-view {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.jobs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid $border-color;
+  flex-shrink: 0;
+}
+
+.header-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.jobs-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+</style>

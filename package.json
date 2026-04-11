@@ -1,0 +1,44 @@
+{
+  "name": "hermes-web-ui",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "hermes-web-ui": "./bin/hermes-web-ui.mjs"
+  },
+  "scripts": {
+    "start": "vite --host --port 8648",
+    "dev": "vite --host",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "files": [
+    "bin/",
+    "index.html",
+    "public/",
+    "assets/",
+    "src/",
+    "vite.config.ts",
+    "tsconfig.json",
+    "tsconfig.app.json",
+    "tsconfig.node.json",
+    "package.json"
+  ],
+  "dependencies": {
+    "highlight.js": "^11.11.1",
+    "markdown-it": "^14.1.1",
+    "naive-ui": "^2.44.1",
+    "pinia": "^3.0.4",
+    "vue": "^3.5.32",
+    "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
+    "@types/node": "^24.12.2",
+    "@vitejs/plugin-vue": "^6.0.5",
+    "@vue/tsconfig": "^0.9.1",
+    "sass": "^1.99.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.4",
+    "vue-tsc": "^3.2.6"
+  }
+}
