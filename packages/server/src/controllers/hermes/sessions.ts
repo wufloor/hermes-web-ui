@@ -198,7 +198,7 @@ export async function usageBatch(ctx: any) {
 export async function usageSingle(ctx: any) {
   const result = getUsage(ctx.params.id)
   if (!result) {
-    ctx.body = { input_tokens: 0, output_tokens: 0 }
+    ctx.body = { input_tokens: 0, output_tokens: 0, last_input_tokens: 0 }
     return
   }
   ctx.body = result

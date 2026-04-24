@@ -40,6 +40,7 @@ export interface Session {
   messageCount?: number
   inputTokens?: number
   outputTokens?: number
+  lastInputTokens?: number
   endedAt?: number | null
   lastActiveAt?: number
 }
@@ -664,6 +665,7 @@ export const useChatStore = defineStore('chat', () => {
       if (usage) {
         activeSession.value.inputTokens = usage.input_tokens
         activeSession.value.outputTokens = usage.output_tokens
+        activeSession.value.lastInputTokens = usage.last_input_tokens ?? 0
       }
     } catch { /* non-critical */ }
   }
@@ -900,6 +902,11 @@ export const useChatStore = defineStore('chat', () => {
                 if (target) {
                   target.inputTokens = evt.usage.input_tokens
                   target.outputTokens = evt.usage.output_tokens
+                  // Refresh lastInputTokens from backend, which stores the
+                  // run-level delta used by the context-window gauge (#167).
+                  fetchSessionUsageSingle(sid).then(u => {
+                    if (u && target) target.lastInputTokens = u.last_input_tokens ?? 0
+                  }).catch(() => { /* non-critical */ })
                 }
               }
               cleanup()

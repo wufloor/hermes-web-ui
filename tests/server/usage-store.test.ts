@@ -51,10 +51,41 @@ describe('Usage Store (JSON fallback)', () => {
     )
   })
 
+  it('updateUsage persists last_input_tokens when provided', () => {
+    updateUsage('session-1', 500, 120, 180)
+    expect(mockJsonSet).toHaveBeenCalledWith(
+      'session_usage',
+      'session-1',
+      expect.objectContaining({
+        input_tokens: 500,
+        output_tokens: 120,
+        last_input_tokens: 180,
+      }),
+    )
+  })
+
+  it('updateUsage omits last_input_tokens when not provided', () => {
+    updateUsage('session-1', 100, 50)
+    const payload = mockJsonSet.mock.calls[0][2]
+    expect(payload.last_input_tokens).toBeUndefined()
+  })
+
+  it('getUsage returns last_input_tokens when present', () => {
+    mockJsonGet.mockReturnValue({ input_tokens: 200, output_tokens: 80, last_input_tokens: 75 })
+    const result = getUsage('session-1')
+    expect(result).toEqual({ input_tokens: 200, output_tokens: 80, last_input_tokens: 75 })
+  })
+
+  it('getUsage reports last_input_tokens as 0 when missing (legacy rows)', () => {
+    mockJsonGet.mockReturnValue({ input_tokens: 200, output_tokens: 80 })
+    const result = getUsage('session-1')
+    expect(result).toEqual({ input_tokens: 200, output_tokens: 80, last_input_tokens: 0 })
+  })
+
   it('getUsage reads via jsonGet', () => {
     mockJsonGet.mockReturnValue({ input_tokens: 200, output_tokens: 80 })
     const result = getUsage('session-1')
-    expect(result).toEqual({ input_tokens: 200, output_tokens: 80 })
+    expect(result).toEqual({ input_tokens: 200, output_tokens: 80, last_input_tokens: 0 })
     expect(mockJsonGet).toHaveBeenCalledWith('session_usage', 'session-1')
   })
 
@@ -72,14 +103,14 @@ describe('Usage Store (JSON fallback)', () => {
 
   it('getUsageBatch returns matching records', () => {
     mockJsonGetAll.mockReturnValue({
-      'session-1': { input_tokens: 100, output_tokens: 50 },
-      'session-2': { input_tokens: 200, output_tokens: 80 },
-      'session-3': { input_tokens: 300, output_tokens: 120 },
+      'session-1': { input_tokens: 100, output_tokens: 50, last_input_tokens: 40 },
+      'session-2': { input_tokens: 200, output_tokens: 80, last_input_tokens: 70 },
+      'session-3': { input_tokens: 300, output_tokens: 120, last_input_tokens: 90 },
     })
     const result = getUsageBatch(['session-1', 'session-3', 'session-missing'])
     expect(result).toEqual({
-      'session-1': { input_tokens: 100, output_tokens: 50 },
-      'session-3': { input_tokens: 300, output_tokens: 120 },
+      'session-1': { input_tokens: 100, output_tokens: 50, last_input_tokens: 40 },
+      'session-3': { input_tokens: 300, output_tokens: 120, last_input_tokens: 90 },
     })
   })
 
@@ -126,28 +157,34 @@ describe('Usage Store (SQLite path)', () => {
   it('updateUsage runs INSERT ... ON CONFLICT query', async () => {
     const { updateUsage } = await import('../../packages/server/src/db/hermes/usage-store')
     updateUsage('s1', 500, 200)
-    expect(runMock).toHaveBeenCalledWith('s1', 500, 200, expect.any(Number))
+    expect(runMock).toHaveBeenCalledWith('s1', 500, 200, 0, expect.any(Number))
+  })
+
+  it('updateUsage persists last_input_tokens when provided (SQLite)', async () => {
+    const { updateUsage } = await import('../../packages/server/src/db/hermes/usage-store')
+    updateUsage('s1', 500, 200, 180)
+    expect(runMock).toHaveBeenCalledWith('s1', 500, 200, 180, expect.any(Number))
   })
 
   it('getUsage queries by session_id', async () => {
-    getMock.mockReturnValue({ input_tokens: 999, output_tokens: 111 })
+    getMock.mockReturnValue({ input_tokens: 999, output_tokens: 111, last_input_tokens: 444 })
     const { getUsage } = await import('../../packages/server/src/db/hermes/usage-store')
     const result = getUsage('s1')
     expect(getMock).toHaveBeenCalledWith('s1')
-    expect(result).toEqual({ input_tokens: 999, output_tokens: 111 })
+    expect(result).toEqual({ input_tokens: 999, output_tokens: 111, last_input_tokens: 444 })
   })
 
   it('getUsageBatch queries with IN clause', async () => {
     allMock.mockReturnValue([
-      { session_id: 'a', input_tokens: 1, output_tokens: 2 },
-      { session_id: 'b', input_tokens: 3, output_tokens: 4 },
+      { session_id: 'a', input_tokens: 1, output_tokens: 2, last_input_tokens: 3 },
+      { session_id: 'b', input_tokens: 3, output_tokens: 4, last_input_tokens: 5 },
     ])
     const { getUsageBatch } = await import('../../packages/server/src/db/hermes/usage-store')
     const result = getUsageBatch(['a', 'b', 'c'])
     expect(allMock).toHaveBeenCalledWith('a', 'b', 'c')
     expect(result).toEqual({
-      a: { input_tokens: 1, output_tokens: 2 },
-      b: { input_tokens: 3, output_tokens: 4 },
+      a: { input_tokens: 1, output_tokens: 2, last_input_tokens: 3 },
+      b: { input_tokens: 3, output_tokens: 4, last_input_tokens: 5 },
     })
   })
 

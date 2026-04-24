@@ -9,12 +9,14 @@ vi.mock('../../packages/server/src/services/gateway-bootstrap', () => ({
   getGatewayManagerInstance: () => null,
 }))
 
-// Mock updateUsage so we can assert calls without real DB
-const { mockUpdateUsage } = vi.hoisted(() => ({
+// Mock updateUsage + getUsage so we can assert calls and control prior state without real DB
+const { mockUpdateUsage, mockGetUsage } = vi.hoisted(() => ({
   mockUpdateUsage: vi.fn(),
+  mockGetUsage: vi.fn(),
 }))
 vi.mock('../../packages/server/src/db/hermes/usage-store', () => ({
   updateUsage: mockUpdateUsage,
+  getUsage: mockGetUsage,
 }))
 
 const mockFetch = vi.fn()
@@ -279,6 +281,7 @@ describe('POST /v1/runs — session_id capture', () => {
 describe('SSE stream interception — run.completed', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockGetUsage.mockReset()
   })
 
   it('intercepts run.completed and calls updateUsage', async () => {
@@ -307,11 +310,68 @@ describe('SSE stream interception — run.completed', () => {
 
     await proxy(ctx)
 
-    // Verify updateUsage was called with correct values
-    expect(mockUpdateUsage).toHaveBeenCalledWith(sessionId, 13949, 45)
+    // Verify updateUsage was called with correct values, including the
+    // per-run input delta (last_input_tokens = new - prev, clamped ≥ 0).
+    // With no prior record, delta == new input_tokens.
+    expect(mockUpdateUsage).toHaveBeenCalledWith(sessionId, 13949, 45, 13949)
     // Verify SSE data was forwarded to client
     expect(ctx.res.write).toHaveBeenCalled()
     expect(ctx.res.end).toHaveBeenCalled()
+  })
+
+  it('computes last_input_tokens as delta against previous stored usage', async () => {
+    const runId = 'run-delta-1'
+    const sessionId = 'session-delta-1'
+    setRunSession(runId, sessionId)
+
+    // Prior run already stored 10_000 input tokens
+    mockGetUsage.mockReturnValue({ input_tokens: 10000, output_tokens: 0, last_input_tokens: 10000 })
+
+    const sseData = [
+      `data: ${JSON.stringify({ event: 'run.completed', run_id: runId, usage: { input_tokens: 13500, output_tokens: 50, total_tokens: 13550 } })}\n\n`,
+    ]
+    mockFetch.mockResolvedValue({
+      status: 200,
+      headers: new Headers({ 'content-type': 'text/event-stream' }),
+      body: createSSEBody(sseData),
+    })
+    const ctx = createMockCtx({
+      path: `/api/hermes/v1/runs/${runId}/events`,
+      search: '',
+    })
+    await proxy(ctx)
+
+    // delta = 13500 - 10000 = 3500
+    expect(mockUpdateUsage).toHaveBeenCalledWith(sessionId, 13500, 50, 3500)
+  })
+
+  it('treats new <= prev as agent reset and uses the new cumulative as the delta', async () => {
+    // When gateway agent is re-initialized (web-ui restart, resumed session,
+    // etc.) its session_prompt_tokens resets to 0. In that case the new
+    // cumulative reported on run.completed IS itself the latest run's prompt
+    // size — not zero. (#167)
+    const runId = 'run-delta-reset'
+    const sessionId = 'session-delta-reset'
+    setRunSession(runId, sessionId)
+
+    mockGetUsage.mockReturnValue({ input_tokens: 20000, output_tokens: 0, last_input_tokens: 5000 })
+
+    const sseData = [
+      `data: ${JSON.stringify({ event: 'run.completed', run_id: runId, usage: { input_tokens: 15000, output_tokens: 20, total_tokens: 15020 } })}\n\n`,
+    ]
+    mockFetch.mockResolvedValue({
+      status: 200,
+      headers: new Headers({ 'content-type': 'text/event-stream' }),
+      body: createSSEBody(sseData),
+    })
+    const ctx = createMockCtx({
+      path: `/api/hermes/v1/runs/${runId}/events`,
+      search: '',
+    })
+    await proxy(ctx)
+
+    // 15000 <= 20000 → reset detected → last = 15000 (not 0, not -5000)
+    expect(mockUpdateUsage).toHaveBeenCalledWith(sessionId, 15000, 20, 15000)
   })
 
   it('does not call updateUsage when no mapping exists', async () => {
@@ -385,7 +445,7 @@ describe('SSE stream interception — run.completed', () => {
 
     await proxy(ctx)
 
-    expect(mockUpdateUsage).toHaveBeenCalledWith('session-multi', 500, 100)
+    expect(mockUpdateUsage).toHaveBeenCalledWith('session-multi', 500, 100, 500)
   })
 
   it('handles SSE split across multiple chunks', async () => {
@@ -412,7 +472,7 @@ describe('SSE stream interception — run.completed', () => {
 
     await proxy(ctx)
 
-    expect(mockUpdateUsage).toHaveBeenCalledWith('session-split', 200, 50)
+    expect(mockUpdateUsage).toHaveBeenCalledWith('session-split', 200, 50, 200)
   })
 
   it('forwards colon-containing SSE deltas around tool events unchanged and disables buffering', async () => {
@@ -465,7 +525,7 @@ describe('SSE stream interception — run.completed', () => {
 
     await proxy(ctx)
 
-    expect(mockUpdateUsage).toHaveBeenCalledWith('session-crlf', 321, 45)
+    expect(mockUpdateUsage).toHaveBeenCalledWith('session-crlf', 321, 45, 321)
   })
 
   it('does not let usage accounting failures abort the SSE stream', async () => {

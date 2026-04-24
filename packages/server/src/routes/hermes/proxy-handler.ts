@@ -1,7 +1,7 @@
 import type { Context } from 'koa'
 import { config } from '../../config'
 import { getGatewayManagerInstance } from '../../services/gateway-bootstrap'
-import { updateUsage } from '../../db/hermes/usage-store'
+import { updateUsage, getUsage } from '../../db/hermes/usage-store'
 
 function getGatewayManager() { return getGatewayManagerInstance() }
 
@@ -115,7 +115,22 @@ function extractRunCompletedFromBlock(block: string): string | null {
     if (data.event === 'run.completed' && data.usage && data.run_id) {
       const sessionId = getSessionForRun(data.run_id)
       if (sessionId) {
-        updateUsage(sessionId, data.usage.input_tokens, data.usage.output_tokens)
+        // Compute last_input_tokens = size of the most recent run's prompt.
+        // The gateway's usage.input_tokens is cumulative across runs within
+        // a single agent lifetime (session_prompt_tokens in hermes-agent).
+        //
+        //   - Normal continuation (new > prev): last = new - prev
+        //   - Agent reset (new <= prev): the gateway agent was re-initialized
+        //     (e.g. web-ui restart, session resumed from disk), so the new
+        //     cumulative IS itself the latest run's prompt size. Using
+        //     `new` here (not 0) is what makes the context-window gauge
+        //     show a sensible value after web-ui restarts — see #167.
+        const prev = getUsage(sessionId)
+        const prevInput = prev?.input_tokens ?? 0
+        const lastInput = data.usage.input_tokens > prevInput
+          ? data.usage.input_tokens - prevInput
+          : data.usage.input_tokens
+        updateUsage(sessionId, data.usage.input_tokens, data.usage.output_tokens, lastInput)
         return data.run_id
       }
     }

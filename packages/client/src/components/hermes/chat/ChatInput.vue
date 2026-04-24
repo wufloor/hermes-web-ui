@@ -38,16 +38,30 @@ onMounted(loadContextLength)
 watch(() => useProfilesStore().activeProfileName, loadContextLength)
 watch(() => useAppStore().selectedModel, loadContextLength)
 
+// Cumulative session totals — used only to decide whether to render the gauge.
 const totalTokens = computed(() => {
   const input = chatStore.activeSession?.inputTokens ?? 0
   const output = chatStore.activeSession?.outputTokens ?? 0
   return input + output
 })
 
-const remainingTokens = computed(() => contextLength.value - totalTokens.value)
+// Current context fill = size of the most recent run's prompt, as tracked by
+// the server (see #167). Falls back to cumulative input for legacy rows
+// written before we started tracking per-run deltas (detected by
+// lastInputTokens === 0 while inputTokens > 0, which is impossible under
+// the new logic).
+const currentContextFill = computed(() => {
+  const last = chatStore.activeSession?.lastInputTokens
+  const input = chatStore.activeSession?.inputTokens ?? 0
+  if (last === undefined || last === null) return input
+  if (last === 0 && input > 0) return input
+  return last
+})
+
+const remainingTokens = computed(() => Math.max(0, contextLength.value - currentContextFill.value))
 
 const usagePercent = computed(() =>
-  Math.min((totalTokens.value / contextLength.value) * 100, 100),
+  Math.min((currentContextFill.value / contextLength.value) * 100, 100),
 )
 
 function formatTokens(n: number): string {
@@ -208,7 +222,7 @@ function isImage(type: string): boolean {
         {{ t('chat.attachFiles') }}
       </NTooltip>
       <span v-if="totalTokens > 0" class="context-info" :class="{ 'context-warning': usagePercent > 80 }">
-        {{ formatTokens(totalTokens) }} / {{ formatTokens(contextLength) }} · {{ t('chat.contextRemaining') }} {{ formatTokens(remainingTokens) }}
+        {{ formatTokens(currentContextFill) }} / {{ formatTokens(contextLength) }} · {{ t('chat.contextRemaining') }} {{ formatTokens(remainingTokens) }}
       </span>
       <div v-if="totalTokens > 0" class="context-bar">
         <div
