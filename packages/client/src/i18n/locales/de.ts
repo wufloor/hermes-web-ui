@@ -484,6 +484,7 @@ export default {
     ignoredChannelsHint: 'Kanale, in denen der Bot nie antwortet (komma-getrennt)',
     noThreadChannels: 'Thread-lose Kanale',
     noThreadChannelsHint: 'Kanale, in denen der Bot ohne Threads antwortet (komma-getrennt)',
+    exclusiveTokenWarning: 'Diese Plattform verwendet einen exklusiven Token-Lock. Jedes Profil muss einen anderen Identitäts-Token verwenden, um Konflikte mit anderen Profilen zu vermeiden.',
     botToken: 'Bot-Token',
     botTokenHint: 'Bot-Token vom Entwicklerportal',
     accessToken: 'Zugangs-Token',

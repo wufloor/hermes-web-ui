@@ -484,6 +484,7 @@ export default {
     ignoredChannelsHint: 'Canales donde el bot nunca responde (separados por comas)',
     noThreadChannels: 'Canales sin hilo',
     noThreadChannelsHint: 'Canales donde el bot responde sin hilos (separados por comas)',
+    exclusiveTokenWarning: 'Esta plataforma usa bloqueo exclusivo de token. Cada perfil debe usar un token de identidad distinto para evitar conflictos con otros perfiles.',
     botToken: 'Token del bot',
     botTokenHint: 'Token del bot del portal de desarrolladores',
     accessToken: 'Token de acceso',

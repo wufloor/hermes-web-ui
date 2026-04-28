@@ -484,6 +484,7 @@ export default {
     ignoredChannelsHint: 'Canaux ou le bot ne repond jamais (separes par des virgules)',
     noThreadChannels: 'Canaux sans fil',
     noThreadChannelsHint: 'Canaux ou le bot repond sans fil (separes par des virgules)',
+    exclusiveTokenWarning: 'Cette plateforme utilise un verrou de jeton exclusif. Chaque profil doit utiliser un jeton d\'identite different pour eviter les conflits avec les autres profils.',
     botToken: 'Jeton de bot',
     botTokenHint: 'Jeton de bot depuis le portail developpeur',
     accessToken: 'Jeton d\'acces',

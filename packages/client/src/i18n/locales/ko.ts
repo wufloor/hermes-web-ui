@@ -484,6 +484,7 @@ export default {
     ignoredChannelsHint: '봇이 응답하지 않는 채널 ID (쉼표로 구분)',
     noThreadChannels: '스레드 없는 채널',
     noThreadChannelsHint: '스레드 없이 응답할 채널 ID (쉼표로 구분)',
+    exclusiveTokenWarning: '이 플랫폼은 독점 토큰 잠금을 사용합니다. 각 프로필은 다른 프로필과 충돌하지 않도록 서로 다른 ID 토큰을 사용해야 합니다.',
     botToken: 'Bot Token',
     botTokenHint: '개발자 포털에서 발급받은 Bot Token',
     accessToken: 'Access Token',

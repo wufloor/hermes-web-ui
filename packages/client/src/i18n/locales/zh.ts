@@ -517,6 +517,7 @@ export default {
     ignoredChannelsHint: '不响应的频道 ID（逗号分隔）',
     noThreadChannels: '无线程频道',
     noThreadChannelsHint: '不创建线程的频道 ID（逗号分隔）',
+    exclusiveTokenWarning: '此平台使用独占 token 锁。每个 profile 必须使用不同的身份 token，否则会与其他 profile 冲突导致 gateway 启动失败。',
     botToken: 'Bot Token',
     botTokenHint: '开发者门户获取的 Bot Token',
     accessToken: 'Access Token',

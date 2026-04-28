@@ -484,6 +484,7 @@ export default {
     ignoredChannelsHint: 'ボットが応答しないチャンネル ID（カンマ区切り）',
     noThreadChannels: 'スレッドなしチャンネル',
     noThreadChannelsHint: 'スレッドなしで応答するチャンネル ID（カンマ区切り）',
+    exclusiveTokenWarning: 'このプラットフォームは排他的トークンロックを使用します。各プロファイルは他のプロファイルと競合しないように、異なる ID トークンを使用する必要があります。',
     botToken: 'ボットトークン',
     botTokenHint: '開発者ポータルから取得したボットトークン',
     accessToken: 'アクセストークン',
